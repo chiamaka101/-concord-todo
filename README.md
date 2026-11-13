@@ -1,4 +1,4 @@
-Here - copy ONLY this box:
+
 # ✅ Concord Todo App
 
 A beautiful, simple Todo app with Categories, Due Dates, and a clean UI.
@@ -17,11 +17,11 @@ Built with HTML, CSS, JavaScript + Node.js + Express.
 - frontend/ -> The pretty UI (index.html)
 - backend/ -> Node.js + Express API (server.js)
 
-## 🚀 How to Run (For Alex)
+## 🚀 How to Run 
 
 1. Clone it
 
-```bash
+bash
 git clone https://github.com/chiamaka101/-concord-todo.git
 2. Start Backend
 cd -concord-todo/backend
