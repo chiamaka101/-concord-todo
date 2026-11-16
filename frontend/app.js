@@ -8,18 +8,24 @@ async function loadTodos() {
   todos.forEach(todo => {
     const li = document.createElement('li');
     if (todo.done) li.classList.add('done');
-    li.innerHTML = `<span onclick="toggleTodo(${todo.id})" style="cursor:pointer">${todo.text}</span> <button onclick="deleteTodo(${todo.id})">Delete</button>`;
+    li.innerHTML = `<span onclick="toggleTodo(${todo.id})" style="cursor:pointer">${todo.text} - [${todo.category || 'Personal'}]</span> <button onclick="deleteTodo(${todo.id})">Delete</button>`;
     list.appendChild(li);
   });
 }
 
 async function addTodo() {
   const input = document.getElementById('todoInput');
+  const categoryInput = document.getElementById('categoryInput');
+  const dateInput = document.getElementById('dueDateInput');
   if (!input.value.trim()) return;
   await fetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: input.value })
+    body: JSON.stringify({ 
+      text: input.value,
+      category: categoryInput ? categoryInput.value : 'Personal',
+      dueDate: dateInput ? dateInput.value : ''
+    })
   });
   input.value = '';
   loadTodos();
