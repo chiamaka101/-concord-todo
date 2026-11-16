@@ -1,18 +1,21 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
+const path = require('path');
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+const DATA_FILE = path.join(__dirname, 'todos.json');
 
 let todos = [];
 let id = 1;
 
 // Load saved todos on startup
 try {
-  if (fs.existsSync('todos.json')) {
-    const data = JSON.parse(fs.readFileSync('todos.json', 'utf8'));
+  if (fs.existsSync(DATA_FILE)) {
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
     todos = data.todos || [];
     id = data.nextId || 1;
     if (todos.length > 0) id = Math.max(...todos.map(t => t.id)) + 1;
@@ -22,8 +25,19 @@ try {
 } catch (e) { console.log('No saved file, starting fresh'); }
 
 function saveTodos() {
-  fs.writeFileSync('todos.json', JSON.stringify({ todos, nextId: id }, null, 2));
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify({ todos, nextId: id }, null, 2));
+  } catch (e) {
+    // On Vercel the filesystem is read-only / ephemeral, so saving will fail.
+    // Don't crash the request - todos still work in memory for this session.
+    console.log('Could not save to file (expected on Vercel):', e.message);
+  }
 }
+
+// Health check - fixes your GET / 404
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', service: 'todo-backend' });
+});
 
 app.get('/api/todos', (req, res) => {
   res.json(todos);
@@ -59,4 +73,9 @@ app.delete('/api/todos/:id', (req, res) => {
   res.json({ success: true });
 });
 
-app.listen(3001, () => console.log('Backend running on http://localhost:3001'));
+module.exports = app;
+
+// Only listen when running locally - Vercel uses the exported app
+if (require.main === module) {
+  app.listen(3001, () => console.log('Backend running on http://localhost:3001'));
+}

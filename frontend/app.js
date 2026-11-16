@@ -1,4 +1,4 @@
-const API = 'http://localhost:3001/api/todos';
+const API = 'https://backend-rust-kappa-28.vercel.app/api/todos';
 
 async function loadTodos() {
   const res = await fetch(API);
