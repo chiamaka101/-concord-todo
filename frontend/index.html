@@ -79,72 +79,204 @@
     <ul id="todoList"></ul>
     </div>
     <script>
-        const API_URL = 'https://backend-rust-kappa-28.vercel.app/api/todos';
-        const todoInput = document.getElementById('todoInput');
-        const dueDateInput = document.getElementById('dueDateInput');
-        const categoryInput = document.getElementById('categoryInput');
-        const categoryFilter = document.getElementById('categoryFilter');
-        const addBtn = document.getElementById('addBtn');
-        const todoList = document.getElementById('todoList');
-        const searchInput = document.getElementById('searchInput');
-        const countLabel = document.getElementById('countLabel');
-        let allTodos = [];
-        let currentFilter = 'all';
-        let searchQuery = '';
-        let currentCategory = 'all';
-        function getTodayDateString() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; }
-        async function fetchTodos() { try { const res = await fetch(API_URL); allTodos = await res.json(); renderTodos(); } catch (err) { console.error(err); } }
-        async function addTodo() {
-            const text = todoInput.value.trim();
-            const dueDate = dueDateInput.value ? dueDateInput.value : null;
-            const category = categoryInput.value;
-            if (!text) return;
-            try { await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, dueDate, category }) }); todoInput.value = ''; dueDateInput.value = ''; fetchTodos(); } catch (err) { console.error(err); }
-        }
-        async function toggleTodo(id) { try { await fetch(`${API_URL}/${id}`, { method: 'PUT' }); fetchTodos(); } catch (err) { console.error(err); } }
-        async function editTodo(todo) {
-            const newText = prompt("Edit todo:", todo.text);
-            if (newText === null || !newText.trim()) return;
-            const newDueDate = prompt("Edit due date (YYYY-MM-DD, leave blank for none):", todo.dueDate || "");
-            const newCat = prompt("Edit category (Personal / Work / Shopping / Urgent / Other):", todo.category || "Personal");
-            try { await fetch(`${API_URL}/${todo.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: newText.trim(), dueDate: newDueDate ? newDueDate : null, category: newCat || 'Personal' }) }); fetchTodos(); } catch (err) { console.error(err); }
-        }
-        async function deleteTodo(id) { try { await fetch(`${API_URL}/${id}`, { method: 'DELETE' }); fetchTodos(); } catch (err) { console.error(err); } }
-        function renderTodos() {
-            todoList.innerHTML = '';
-            const todayStr = getTodayDateString();
-            const activeCount = allTodos.filter(t => !t.done).length;
-            countLabel.textContent = allTodos.length === 0 ? '' : `${activeCount} left to do • ${allTodos.length} total`;
-            let filtered = allTodos.filter(todo => {
-                if (currentFilter === 'active' && todo.done) return false;
-                if (currentFilter === 'completed' && !todo.done) return false;
-                if (currentCategory !== 'all' && todo.category !== currentCategory) return false;
-                if (searchQuery && !todo.text.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-                return true;
-            });
-            if (filtered.length === 0) { const p = document.createElement('p'); p.className = 'empty'; p.innerHTML = `<span>🎉</span>${searchQuery || currentCategory !== 'all' ? 'No todos match your filters.' : 'All clear! Add a new todo above.'}`; todoList.appendChild(p); return; }
-            filtered.forEach(todo => {
-                const li = document.createElement('li');
-                const isOverdue = todo.dueDate && todo.dueDate < todayStr && !todo.done;
-                const contentDiv = document.createElement('div'); contentDiv.className = 'todo-content';
-                const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = todo.done; checkbox.onchange = () => toggleTodo(todo.id);
-                const textSpan = document.createElement('span'); textSpan.className = `todo-text ${todo.done ? 'completed' : ''}`; textSpan.textContent = todo.text;
-                contentDiv.appendChild(checkbox); contentDiv.appendChild(textSpan);
-                const catSpan = document.createElement('span'); catSpan.className = `cat-badge cat-${todo.category || 'Personal'}`; catSpan.textContent = todo.category || 'Personal'; contentDiv.appendChild(catSpan);
-                if (todo.dueDate) { const dueSpan = document.createElement('span'); dueSpan.className = `due-date ${isOverdue ? 'overdue' : ''}`; dueSpan.textContent = isOverdue ? `⚠️ Overdue • ${todo.dueDate}` : `📅 ${todo.dueDate}`; contentDiv.appendChild(dueSpan); }
-                const actions = document.createElement('div'); actions.className = 'actions';
-                const editBtn = document.createElement('button'); editBtn.className = 'edit-btn'; editBtn.textContent = 'Edit'; editBtn.onclick = () => editTodo(todo);
-                const deleteBtn = document.createElement('button'); deleteBtn.className = 'delete-btn'; deleteBtn.textContent = 'Delete'; deleteBtn.onclick = () => deleteTodo(todo.id);
-                actions.appendChild(editBtn); actions.appendChild(deleteBtn);
-                li.appendChild(contentDiv); li.appendChild(actions); todoList.appendChild(li);
-            });
-        }
-        addBtn.addEventListener('click', addTodo);
-        todoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTodo(); });
-        searchInput.addEventListener('input', (e) => { searchQuery = e.target.value; renderTodos(); });
-        categoryFilter.addEventListener('change', (e) => { currentCategory = e.target.value; renderTodos(); });
-        document.querySelectorAll('.filter-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentFilter = btn.dataset.filter; renderTodos(); }); });
+    const todoInput = document.getElementById('todoInput');
+    const dueDateInput = document.getElementById('dueDateInput');
+    const categoryInput = document.getElementById('categoryInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const addBtn = document.getElementById('addBtn');
+    const todoList = document.getElementById('todoList');
+    const searchInput = document.getElementById('searchInput');
+    const countLabel = document.getElementById('countLabel');
+
+    let allTodos = JSON.parse(localStorage.getItem('myTodos') || '[]');
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let currentCategory = 'all';
+
+    function saveTodos() {
+        localStorage.setItem('myTodos', JSON.stringify(allTodos));
+    }
+
+    function getTodayDateString() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+
+    function fetchTodos() {
+        renderTodos();
+    }
+
+    function addTodo() {
+        const text = todoInput.value.trim();
+        const dueDate = dueDateInput.value ? dueDateInput.value : null;
+        const category = categoryInput.value;
+
+        if (!text) return;
+
+        allTodos.push({
+            id: Date.now(),
+            text: text,
+            done: false,
+            dueDate: dueDate,
+            category: category
+        });
+
+        saveTodos();
+        todoInput.value = '';
+        dueDateInput.value = '';
         fetchTodos();
-    </script>
+    }
+
+    function toggleTodo(id) {
+        const todo = allTodos.find(function (x) {
+            return x.id == id;
+        });
+        if (todo) {
+            todo.done = !todo.done;
+        }
+        saveTodos();
+        fetchTodos();
+    }
+
+    function editTodo(todo) {
+        const newText = prompt('Edit todo:', todo.text);
+        if (newText === null || !newText.trim()) return;
+
+        const newDueDate = prompt('Edit due date (YYYY-MM-DD, leave blank for none):', todo.dueDate || '');
+        const newCat = prompt('Edit category (Personal / Work / Shopping / Urgent / Other):', todo.category || 'Personal');
+
+        todo.text = newText.trim();
+        todo.dueDate = newDueDate ? newDueDate : null;
+        todo.category = newCat || 'Personal';
+
+        saveTodos();
+        fetchTodos();
+    }
+
+    function deleteTodo(id) {
+        allTodos = allTodos.filter(function (t) {
+            return t.id != id;
+        });
+        saveTodos();
+        fetchTodos();
+    }
+
+    function renderTodos() {
+        todoList.innerHTML = '';
+        const todayStr = getTodayDateString();
+        const activeCount = allTodos.filter(function (t) {
+            return !t.done;
+        }).length;
+
+        countLabel.textContent = allTodos.length === 0
+            ? ''
+            : `${activeCount} left to do • ${allTodos.length} total`;
+
+        let filtered = allTodos.filter(function (todo) {
+            if (currentFilter === 'active' && todo.done) return false;
+            if (currentFilter === 'completed' && !todo.done) return false;
+            if (currentCategory !== 'all' && todo.category !== currentCategory) return false;
+            if (searchQuery && !todo.text.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            const p = document.createElement('p');
+            p.className = 'empty';
+            p.innerHTML = `<span>🎉</span>${searchQuery || currentCategory !== 'all' ? 'No todos match your filters.' : 'All clear! Add a new todo above.'}`;
+            todoList.appendChild(p);
+            return;
+        }
+
+        filtered.forEach(function (todo) {
+            const li = document.createElement('li');
+            const isOverdue = todo.dueDate && todo.dueDate < todayStr && !todo.done;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'todo-content';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = todo.done;
+            checkbox.onchange = function () {
+                toggleTodo(todo.id);
+            };
+
+            const textSpan = document.createElement('span');
+            textSpan.className = `todo-text ${todo.done ? 'completed' : ''}`;
+            textSpan.textContent = todo.text;
+
+            contentDiv.appendChild(checkbox);
+            contentDiv.appendChild(textSpan);
+
+            const catSpan = document.createElement('span');
+            catSpan.className = `cat-badge cat-${todo.category || 'Personal'}`;
+            catSpan.textContent = todo.category || 'Personal';
+            contentDiv.appendChild(catSpan);
+
+            if (todo.dueDate) {
+                const dueSpan = document.createElement('span');
+                dueSpan.className = `due-date ${isOverdue ? 'overdue' : ''}`;
+                dueSpan.textContent = isOverdue
+                    ? `⚠️ Overdue • ${todo.dueDate}`
+                    : `📅 ${todo.dueDate}`;
+                contentDiv.appendChild(dueSpan);
+            }
+
+            const actions = document.createElement('div');
+            actions.className = 'actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'edit-btn';
+            editBtn.textContent = 'Edit';
+            editBtn.onclick = function () {
+                editTodo(todo);
+            };
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.onclick = function () {
+                deleteTodo(todo.id);
+            };
+
+            actions.appendChild(editBtn);
+            actions.appendChild(deleteBtn);
+
+            li.appendChild(contentDiv);
+            li.appendChild(actions);
+            todoList.appendChild(li);
+        });
+    }
+
+    addBtn.addEventListener('click', addTodo);
+
+    todoInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') addTodo();
+    });
+
+    searchInput.addEventListener('input', function (e) {
+        searchQuery = e.target.value;
+        renderTodos();
+    });
+
+    categoryFilter.addEventListener('change', function (e) {
+        currentCategory = e.target.value;
+        renderTodos();
+    });
+
+    document.querySelectorAll('.filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.filter-btn').forEach(function (b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+            currentFilter = btn.dataset.filter;
+            renderTodos();
+        });
+    });
+
+    fetchTodos();
+</script>
 </body>
 </html>
